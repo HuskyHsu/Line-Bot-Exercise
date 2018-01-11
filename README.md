@@ -30,6 +30,7 @@ s
 
 提供座標與位置訊息查詢地籍功能
 
+好友連結
 ![Alt text](https://i.imgur.com/R1h1qrr.png)
 
 ![Alt text](https://i.imgur.com/HRoFGh0.jpg)
