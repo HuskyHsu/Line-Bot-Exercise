@@ -25,3 +25,11 @@ s
 |`點餐 清單`|呼叫同群組內點餐紀錄|同語法|
 |`點餐 統計`|統計圖群組內的點餐紀錄|同語法|
 |`點餐 清除`|清除當前群組點餐紀錄|同語法|
+
+2. 地籍定位
+
+提供座標與位置訊息查詢地籍功能
+
+![Alt text](http://qr-official.line.me/L/RiDYWjvr0m.png)
+
+![Alt text](https://i.imgur.com/HRoFGh0.jpg)
