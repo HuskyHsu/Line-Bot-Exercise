@@ -33,4 +33,4 @@ s
 好友連結
 ![Alt text](https://i.imgur.com/R1h1qrr.png)
 
-![Alt text](https://i.imgur.com/HRoFGh0.jpg)
+![Alt text](https://i.imgur.com/HRoFGh0.jpg=200x)
