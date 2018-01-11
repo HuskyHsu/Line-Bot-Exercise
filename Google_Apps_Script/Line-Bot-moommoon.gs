@@ -1,4 +1,4 @@
-var CHANNEL_ACCESS_TOKEN = 'YOUR_CHANNEL_ACCESS_TOKEN';
+var CHANNEL_ACCESS_TOKEN = 'X0Ms+Ag2w0q8YpWGrxBioPhFRTi5jgpBkaorsq0u4ejtF5rYRULDbvJ1457VeLqlxRdUVy76QxhOLKq+6Eti7sqQwFaRr5J7YVgQwS/HN5eS/csfxwoFBTw5jhZ86EbP98voTJzmaH0r8Ezs9WNPRQdB04t89/1O/w1cDnyilFU=';
 
 //抓取IP位置
 function doGet(e) {
@@ -23,20 +23,20 @@ function doPost(e) {
   switch(events.type)
   {
     case 'message':
-      messages = analysisMessageType(events.message)
-    break;
+      messages = analysisMessageType(events.message, events.source.userId, events.source.groupId)
+      break;
       
     case 'follow':
-
-    break;
-    
+      
+      break;
+      
     case 'postback':
       try {
         messages = THSRC(events.postback.data, events.postback.params['datetime'])
       } catch (e) {
         messages = THSRC(events.postback.data, "")
       }
-    break;
+      break;
   }
   
   
@@ -52,65 +52,260 @@ function doPost(e) {
   }
   
   UrlFetchApp.fetch(url, options);
-
+  
   return ContentService.createTextOutput(JSON.stringify({'content': 'post ok'})).setMimeType(ContentService.MimeType.JSON);
 }
 
-function analysisMessageType(message)
+// 處理不同類型事件
+function analysisMessageType(message, userId, groupId)
 {
   switch(message.type)
   {
     case 'text':
-      messages = analysisMessage(message.text)
-    break;
+//      console.log(userId);
+      messages = analysisMessage(message.text, userId, groupId)
+      break;
     case 'location':
-      
-      var formData = {
-        'city':"W",
-        'coordX': message.longitude,
-        'coordY': message.latitude,
-      };
-    
-      var options = {
-        'method' : 'post',
-        'payload' : formData
-      };
-       
-      var response = JSON.parse(UrlFetchApp.fetch('http://easymap.land.moi.gov.tw/R02/Door_json_getDoorInfoByXY', options));
-      Logger.log(response);
-      messages = [{
-            "type":"text",
-            "text": message.longitude
-        },{
-            "type":"text",
-            "text": message.latitude
-        },{
-            "type":"text",
-            "text": JSON.stringify(response)
-        }]
-    break;
+      messages = analysislocation(message.longitude, message.latitude)
+      break;
+    case 'image':
+      //      messages = saveImage(message.id)
+      break;
   }
   
   return messages
 }
 
-function analysisMessage(messageText)
+// 處理文字事件
+function analysisMessage(messageText, userId, groupId)
 {
   if (messageText.substring(0,2) === "高鐵"){
     return THSRC('高鐵', "")
   }
+  else if(messageText.substring(0,2) === "點餐"){
+    return order(messageText, userId, groupId)
+  }
   else {
+    //    return [{
+    //      'type': 'text',
+    //      'text': messageText
+    //    }]
+  }
+}
+
+// 處理座標事件
+function analysisLocation(longitude, latitude){
+  
+  longitude = 118.319407;
+  latitude = 24.437090;
+  var formData = {
+    'city':"W",
+    'coordX': longitude,
+    'coordY': latitude,
+  };
+  
+  var options = {
+    'method' : 'post',
+    'payload' : formData
+  };
+  
+  var response = JSON.parse(UrlFetchApp.fetch('http://easymap.land.moi.gov.tw/R02/Door_json_getDoorInfoByXY', options));
+  
+  
+  Logger.log(response);
+  
+  return [{
+    "type":"text",
+    "text": "您查詢的地點為"
+  },{
+    "type":"text",
+    "text": "地段：" + response.sectName
+  },{
+    "type":"text",
+    "text": "地號：" +response.sectno
+  }]
+}
+
+function saveImage(id){
+  
+  //  id = 7253583068818
+  var url = 'https://api.line.me/v2/bot/message/' + id + '/content';
+  var image = UrlFetchApp.fetch(url, {
+    'headers': {
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Authorization': 'Bearer ' + CHANNEL_ACCESS_TOKEN,
+    },
+    'method': 'get'
+  });
+  
+  var blob = image.getAs("image/jpeg");    
+  var thisFolder = DriveApp.getFolderById('1SsMqlWsBuhp3wciQzwjUOX49xwswZYza');
+  thisFolder.createFile(blob);
+  
+  return [{
+    "type":"text",
+    "text": '收到'
+  }]
+  
+}
+
+function order(queryStr, userId, groupId){
+  var res = queryStr.split(" ");
+  
+  //  console.log(queryStr);
+  //  console.log(userId);
+  //  console.log(groupId);
+  var scriptProperties = PropertiesService.getScriptProperties();
+  var orderReceipt = JSON.parse(scriptProperties.getProperty("orderReceipt"));
+  var menu = JSON.parse(scriptProperties.getProperty("menu"));
+  
+  console.log(menu)
+  
+  if (menu === null) {
+    menu = {}
+  }
+  
+  if (res[1] == '今天吃什麼?' || res[1] == '今天吃什麼？'){
     return [{
-      'type': 'text',
-      'text': messageText
+      "type": "image",
+      "originalContentUrl": menu[groupId],
+      "previewImageUrl": menu[groupId]
     }]
   }
+  else if (res[1] == '今天吃這個'){
+    
+    menu[groupId] = res[2];
+    scriptProperties.setProperty("menu", JSON.stringify(menu));
+    
+    return [{
+      "type": "text",
+      "text": "就決定是你了!!"
+    }, {
+      "type": "image",
+      "originalContentUrl": res[2],
+      "previewImageUrl": res[2]
+    }]
+    
+  }
+  else if (res[1] == '清單'){
+    
+    var outString = '';
+    
+    for (var user in orderReceipt[groupId]) {
+      outString += orderReceipt[groupId][user].name + '：' + orderReceipt[groupId][user].item + '，共計 $' + orderReceipt[groupId][user].price + '\n';
+    }
+    return [{
+      "type": "text",
+      "text": outString
+    }]
+    
+  }
+  else if (res[1] == '統計'){
+    
+    var items = {};
+    var outString = '';
+    var totalPrice = 0;
+    
+    for (var user in orderReceipt[groupId]) {
+      if (typeof items[orderReceipt[groupId][user].item]  === 'undefined'){
+        items[orderReceipt[groupId][user].item] = 0;
+      }
+      items[orderReceipt[groupId][user].item] += 1;
+      
+      var price = parseInt(orderReceipt[groupId][user].price);
+
+      
+      if (!isNaN(price)){
+        totalPrice += price;
+      }
+      else {
+        items[orderReceipt[groupId][user].item] -= 1;
+      }
+
+    }
+    
+    for (var item in items) {
+      if (items[item] > 0) {
+        outString += item + '：' + items[item] + '\n';
+      }
+    }
+    
+    return [{
+      "type": "text",
+      "text": outString
+    },{
+      "type": "text",
+      "text": '共計 $' + totalPrice
+    }]
+    
+  }
+  else if(res[1] == '清除'){
+    orderReceipt[groupId] = {};
+    scriptProperties.setProperty("orderReceipt", JSON.stringify(orderReceipt));
+    return [{
+      "type":"text",
+      "text": "本群組點餐紀錄清除完畢"
+    }]
+  }
+  else if(res.length < 3){
+    return [{
+      "type": "text",
+      "text": '請檢查格式'
+    }]
+    
+  }
+  else if( isNaN( parseInt(res[2]) ) ){
+    return [{
+      "type": "text",
+      "text": '請檢查金額'
+    }]
+  }
+  
+  if (typeof groupId === 'undefined'){
+    var url = 'https://api.line.me/v2/bot/profile/' + userId;
+    var profile = JSON.parse(UrlFetchApp.fetch(url, {
+      'headers': {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer ' + CHANNEL_ACCESS_TOKEN,
+      },
+      'method': 'get'
+    }));
+  }
+  else {
+    var url = 'https://api.line.me/v2/bot/group/' + groupId + '/member/' + userId;
+    var profile = JSON.parse(UrlFetchApp.fetch(url, {
+      'headers': {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer ' + CHANNEL_ACCESS_TOKEN,
+      },
+      'method': 'get'
+    }));
+  }
+  
+  if (orderReceipt == null) {
+    orderReceipt = {}
+  }
+  
+  if (typeof orderReceipt[groupId] === 'undefined') {
+    orderReceipt[groupId] = {};
+  }
+  
+  orderReceipt[groupId][userId] = {'name': profile.displayName, 'item': res[1], 'price': res[2]};
+  scriptProperties.setProperty("orderReceipt", JSON.stringify(orderReceipt));
+  
+  console.log(orderReceipt);
+  
+  return [{
+    "type":"text",
+    "text": '收到您的點餐紀錄 ' + res[1]
+  }]
+  
 }
 
 function THSRC(queryStr, datetime){
   
   var res = queryStr.split("-");
-
+  
   
   switch(res.length)
   {
@@ -157,7 +352,7 @@ function THSRC(queryStr, datetime){
           }
         }
       ]
-    break;
+      break;
     case 2:
       messages = [
         {
@@ -201,7 +396,7 @@ function THSRC(queryStr, datetime){
           }
         }
       ]
-    break;
+      break;
     case 3:
       messages = [
         {
@@ -220,7 +415,7 @@ function THSRC(queryStr, datetime){
           }
         }
       ]
-
+      
       if (datetime != ""){
         messages = [{
           'type': 'text',
@@ -228,56 +423,10 @@ function THSRC(queryStr, datetime){
         }]
       }
       
-    break;
+      break;
   }
-      
+  
   return messages
 }
 
 
-
-function checkUpdateAndSendEmail() {
-  var cache = CacheService.getPrivateCache();
-
-  var url = "http://www.thsrc.com.tw/tw/TimeTable/SearchResult";
-  var path = "/html/body/div[0]/section/section[1]/ul/section/table/tbody/tr[2]/td/table/tbody/tr/td[0]/a";
-  var cached = cache.get(url);
-  var text = getDataFromXpath(path, url);
-  if(cached == null || cached != text) {
-//      cache.put(url, cached, 3666);
-//      MailApp.sendEmail("<email>", "YCombinator Top", text);
-//      Logger.log("Mail Sent!!! ");
-  }
-  Logger.log("text : " + text);
-  Logger.log("cached : " + cached);
-}
-
-function getDataFromXpath(path, url) {
-  var data = UrlFetchApp.fetch(url);
-  var text = data.getContentText();
-  var xmlDoc = Xml.parse(text, true);
-
-  // Replacing tbody tag because app script doesnt understand.
-  path = path.replace("/html/","").replace("/tbody","","g");
-  var tags = path.split("/");
-  Logger.log("tags : " + tags);
-  // getting the DOM of HTML
-  var element = xmlDoc.getElement();
-
-  for(var i in tags) {
-    var tag = tags[i];
-    Logger.log("Tag : " + tag);
-     var index = tag.indexOf("[");
-     if(index != -1) {
-       var val = parseInt(tag[index + 1]);
-       tag = tag.substring(0,index);
-       Logger.log(tag + '-' + val);
-       element =  Xml.parse(element.getElements(tag)[val], true);
-       Logger.log(element);
-     } else {
-       element = element.getElement(tag);
-     }
-//    Logger.log(element.toXmlString());
-  }
-  return element
-}
