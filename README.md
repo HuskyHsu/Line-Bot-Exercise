@@ -31,6 +31,7 @@ s
 提供座標與位置訊息查詢地籍功能
 
 好友連結
-![Alt text](https://i.imgur.com/R1h1qrr.png)
 
-![Alt text](https://i.imgur.com/HRoFGh0.jpg=200x)
+<img src="https://i.imgur.com/R1h1qrr.png" alt="alt text" width="200">
+
+<img src="https://i.imgur.com/HRoFGh0.jpg" alt="alt text" width="400">
