@@ -408,9 +408,9 @@ function THSRC(queryStr, datetime){
                "label": "日期",
                "data": res.join("-"),
                "mode":'datetime',
-               "initial":'2017-04-01T12:00',
-               "min":'2017-04-01T12:00',
-               "max":'2017-12-31T12:00'}
+               "initial": getDate(0),
+               "min": getDate(-7),
+               "max": getDate(60)}
             ]
           }
         }
@@ -429,4 +429,26 @@ function THSRC(queryStr, datetime){
   return messages
 }
 
-
+function getDate(n){
+  
+  var today = new Date();
+  today.setDate(today.getDate() + n);
+  var dd = today.getDate();
+  var mm = today.getMonth()+1; //January is 0!
+  var yyyy = today.getFullYear();
+  
+  if(dd<10) {
+    dd = '0'+ dd
+  } 
+  
+  if(mm<10) {
+    mm = '0'+ mm
+  } 
+  
+  today = [yyyy, mm, dd].join('-');
+  
+  Logger.log(today + 'T12:00')
+  
+  return today + 'T12:00'
+  
+}
